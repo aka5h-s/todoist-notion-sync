@@ -60,10 +60,15 @@ function commentBlocks(task: SyncTask): BlockObjectRequest[] {
   return comments.flatMap((comment) => {
     const timestamp = formatDisplayDate(comment.postedAt);
     const prefix = timestamp ? `${timestamp} - ` : "";
-    const blocks = paragraphs(`${prefix}${comment.content || "(attachment)"}`);
+    const hasText = comment.content.trim().length > 0;
+    const blocks = hasText ? paragraphs(`${prefix}${comment.content}`) : [];
 
     if (!comment.attachment) {
-      return blocks;
+      return blocks.length > 0 ? blocks : paragraphs(`${prefix}Empty comment`);
+    }
+
+    if (blocks.length === 0 && timestamp) {
+      return [paragraph(timestamp), ...commentAttachmentBlocks(comment.attachment)];
     }
 
     return [...blocks, ...commentAttachmentBlocks(comment.attachment)];
@@ -75,12 +80,33 @@ function commentAttachmentBlocks(attachment: TodoistCommentAttachment): BlockObj
     return [notionUploadedImageBlock(attachment.notionFileUploadId)];
   }
 
-  const name = attachment.fileName ?? "Untitled attachment";
-  const type = attachment.contentType ?? "unknown content type";
-  const url = attachment.fileUrl ?? "missing URL";
+  const name = attachment.fileName ?? "Attachment";
+  const url = attachment.fileUrl;
   const warning = attachment.uploadError ? ` (${attachment.uploadError})` : "";
 
-  return paragraphs(`${name} | ${type} | ${url}${warning}`);
+  if (!url) {
+    return paragraphs(`${name}${warning}`);
+  }
+
+  return [
+    {
+      object: "block",
+      type: "paragraph",
+      paragraph: {
+        rich_text: [
+          {
+            type: "text",
+            text: {
+              content: `${name}${warning}`,
+              link: {
+                url
+              }
+            }
+          }
+        ]
+      }
+    }
+  ];
 }
 
 function subtaskBlocks(tasks: SyncTask[]): BlockObjectRequest[] {
