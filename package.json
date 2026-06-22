@@ -1,0 +1,32 @@
+{
+  "name": "todoist-notion-sync",
+  "version": "1.0.0",
+  "description": "One-way synchronization from Todoist tasks to Notion databases.",
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "tsx src/index.ts",
+    "sync": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "build": "tsc"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.3.0",
+    "axios": "^1.7.9",
+    "dotenv": "^16.4.7",
+    "pino": "^9.6.0",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "@types/node": "^22.10.2",
+    "eslint": "^9.17.0",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.2",
+    "tsx": "^4.19.2"
+  }
+}
