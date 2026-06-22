@@ -1,5 +1,6 @@
 import type { BlockObjectRequest } from "@notionhq/client/build/src/api-endpoints.js";
 import type { SyncTask, TodoistCommentAttachment } from "../types/domain.js";
+import { formatDisplayDate } from "../utils/date.js";
 import { getDueDate, mapPriority } from "./mappers.js";
 
 const maxRichTextLength = 1900;
@@ -57,9 +58,9 @@ function commentBlocks(task: SyncTask): BlockObjectRequest[] {
   }
 
   return comments.flatMap((comment) => {
-    const timestamp = comment.postedAt ?? "unknown time";
-    const author = comment.author ? ` by ${comment.author}` : "";
-    return paragraphs(`[${timestamp}]${author}: ${comment.content || "(attachment only)"}`);
+    const timestamp = formatDisplayDate(comment.postedAt);
+    const prefix = timestamp ? `${timestamp} - ` : "";
+    return paragraphs(`${prefix}${comment.content || "(attachment only)"}`);
   });
 }
 

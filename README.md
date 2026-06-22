@@ -62,6 +62,7 @@ WORK_DATABASE_ID=387738608a7a80f9b509ceca8fab71e7
 PERSONAL_DATABASE_ID=387738608a7a80d09234f5565a35d2c8
 LOG_LEVEL=info
 COMPLETED_LOOKBACK_DAYS=90
+DISPLAY_TIME_ZONE=Asia/Kolkata
 ```
 
 ## GitHub Actions
@@ -86,6 +87,7 @@ The workflow uses `npm install` so it can run before a lockfile exists. After yo
 - Todoist completed-task lookup by completion date is limited to a maximum three-month range. Keep `COMPLETED_LOOKBACK_DAYS` at `90` or lower.
 - Todoist active-task APIs omit deleted tasks. This app marks a Notion row as `Deleted` when a previously synced `Active` top-level task no longer appears in Todoist active tasks or the recent completed-task feed.
 - Comments for completed tasks may be unavailable depending on Todoist API behavior and account permissions. The sync logs a warning and continues.
+- Comment timestamps are displayed using `DISPLAY_TIME_ZONE`.
 - Todoist attachments are exposed as comment file metadata. This app stores file name, URL, and content type, and embeds image URLs as Notion external images when possible.
 - Notion allows roughly three requests per second per connection and returns `429` or `529` with retry guidance. The app uses retries, exponential backoff, and `Retry-After` handling.
 - Notion request payloads are limited, including 100 block children per append call and 2000 characters per rich text object. The app chunks generated blocks and long text.
