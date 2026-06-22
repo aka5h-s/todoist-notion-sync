@@ -23,8 +23,7 @@ export class NotionClient {
 
   public constructor(fileUploads = new NotionFileUploadClient()) {
     this.notion = new Client({
-      auth: env.NOTION_API_TOKEN,
-      notionVersion: "2026-03-11"
+      auth: env.NOTION_API_TOKEN
     });
     this.fileUploads = fileUploads;
   }

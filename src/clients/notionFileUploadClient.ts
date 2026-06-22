@@ -65,13 +65,9 @@ export class NotionFileUploadClient {
 
     await withRetry(
       async () => {
-        await axios.post(upload.upload_url, form, {
+        await this.notionHttp.post(`/file_uploads/${upload.id}/send`, form, {
           timeout: 60_000,
-          headers: {
-            ...form.getHeaders(),
-            Authorization: `Bearer ${env.NOTION_API_TOKEN}`,
-            "Notion-Version": "2026-03-11"
-          }
+          headers: form.getHeaders()
         });
       },
       { operation: "notion:sendFileUpload" }
