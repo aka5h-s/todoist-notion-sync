@@ -60,8 +60,9 @@ function commentBlocks(task: SyncTask): BlockObjectRequest[] {
   return comments.flatMap((comment) => {
     const timestamp = formatDisplayDate(comment.postedAt);
     const prefix = timestamp ? `${timestamp} - ` : "";
-    const hasText = comment.content.trim().length > 0;
-    const blocks = hasText ? paragraphs(`${prefix}${comment.content}`) : [];
+    const content = cleanCommentContent(comment.content);
+    const hasText = content.length > 0;
+    const blocks = hasText ? paragraphs(`${prefix}${content}`) : [];
 
     if (!comment.attachment) {
       return blocks.length > 0 ? blocks : paragraphs(`${prefix}Empty comment`);
@@ -107,6 +108,11 @@ function commentAttachmentBlocks(attachment: TodoistCommentAttachment): BlockObj
       }
     }
   ];
+}
+
+function cleanCommentContent(content: string): string {
+  const trimmed = content.trim();
+  return trimmed.toLowerCase() === "(attachment)" ? "" : trimmed;
 }
 
 function subtaskBlocks(tasks: SyncTask[]): BlockObjectRequest[] {
