@@ -44,6 +44,8 @@ export interface TodoistCommentAttachment {
   fileName?: string | undefined;
   fileUrl?: string | undefined;
   contentType?: string | undefined;
+  notionFileUploadId?: string | undefined;
+  uploadError?: string | undefined;
 }
 
 export interface TodoistComment {

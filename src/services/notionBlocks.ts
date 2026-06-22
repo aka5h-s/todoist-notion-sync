@@ -14,7 +14,7 @@ export function buildTaskPageBlocks(task: SyncTask): BlockObjectRequest[] {
     heading("Subtasks"),
     ...subtaskBlocks(task.subtasks),
     heading("Attachments"),
-    ...attachmentBlocks(task)
+    paragraph("Attachments are shown with their comments.")
   ];
 }
 
@@ -60,48 +60,27 @@ function commentBlocks(task: SyncTask): BlockObjectRequest[] {
   return comments.flatMap((comment) => {
     const timestamp = formatDisplayDate(comment.postedAt);
     const prefix = timestamp ? `${timestamp} - ` : "";
-    return paragraphs(`${prefix}${comment.content || "(attachment only)"}`);
+    const blocks = paragraphs(`${prefix}${comment.content || "(attachment)"}`);
+
+    if (!comment.attachment) {
+      return blocks;
+    }
+
+    return [...blocks, ...commentAttachmentBlocks(comment.attachment)];
   });
 }
 
-function attachmentBlocks(task: SyncTask): BlockObjectRequest[] {
-  const attachments = task.comments
-    .map((comment) => comment.attachment)
-    .filter((attachment): attachment is TodoistCommentAttachment => Boolean(attachment?.fileUrl));
-
-  const unique = new Map<string, TodoistCommentAttachment>();
-  for (const attachment of attachments) {
-    if (attachment.fileUrl) {
-      unique.set(attachment.fileUrl, attachment);
-    }
+function commentAttachmentBlocks(attachment: TodoistCommentAttachment): BlockObjectRequest[] {
+  if (attachment.notionFileUploadId && isImageAttachment(attachment.contentType)) {
+    return [notionUploadedImageBlock(attachment.notionFileUploadId)];
   }
 
-  if (unique.size === 0) {
-    return [paragraph("No attachments.")];
-  }
+  const name = attachment.fileName ?? "Untitled attachment";
+  const type = attachment.contentType ?? "unknown content type";
+  const url = attachment.fileUrl ?? "missing URL";
+  const warning = attachment.uploadError ? ` (${attachment.uploadError})` : "";
 
-  const blocks: BlockObjectRequest[] = [];
-  for (const attachment of unique.values()) {
-    const name = attachment.fileName ?? "Untitled attachment";
-    const type = attachment.contentType ?? "unknown content type";
-    const url = attachment.fileUrl ?? "";
-    blocks.push(...paragraphs(`${name} | ${type} | ${url}`));
-
-    if (isEmbeddableImage(type, url)) {
-      blocks.push({
-        object: "block",
-        type: "image",
-        image: {
-          type: "external",
-          external: {
-            url
-          }
-        }
-      });
-    }
-  }
-
-  return blocks;
+  return paragraphs(`${name} | ${type} | ${url}${warning}`);
 }
 
 function subtaskBlocks(tasks: SyncTask[]): BlockObjectRequest[] {
@@ -151,6 +130,19 @@ function chunkText(text: string, maxLength: number): string[] {
   return chunks;
 }
 
-function isEmbeddableImage(contentType: string, url: string): boolean {
-  return contentType.toLowerCase().startsWith("image/") && url.length <= 2000;
+function notionUploadedImageBlock(fileUploadId: string): BlockObjectRequest {
+  return {
+    object: "block",
+    type: "image",
+    image: {
+      type: "file_upload",
+      file_upload: {
+        id: fileUploadId
+      }
+    }
+  } as unknown as BlockObjectRequest;
+}
+
+function isImageAttachment(contentType: string | undefined): boolean {
+  return contentType?.toLowerCase().startsWith("image/") ?? false;
 }

@@ -8,8 +8,8 @@ Todoist remains the source of truth. Notion is used as a searchable archive and 
 
 - Top-level Todoist tasks in the `Work` and `Personal` projects become Notion database rows.
 - Subtasks are rendered recursively inside the parent task page under `Subtasks`.
-- Comments are rendered under `Comments` with timestamps and author IDs when Todoist provides them.
-- Attachment metadata is rendered under `Attachments`; image attachments are embedded as external images when Notion supports the URL.
+- Comments are rendered under `Comments` with clean local timestamps.
+- Comment attachments stay with the comment they belong to. Images are copied into Notion and rendered under the comment; PDFs, sheets, and other files stay as inline links under the comment.
 - Deleted Todoist tasks are retained in Notion and marked `Deleted`.
 - Completed tasks are marked `Completed` with `Completed Date`.
 
@@ -63,6 +63,7 @@ PERSONAL_DATABASE_ID=387738608a7a80d09234f5565a35d2c8
 LOG_LEVEL=info
 COMPLETED_LOOKBACK_DAYS=90
 DISPLAY_TIME_ZONE=Asia/Kolkata
+MAX_IMAGE_UPLOAD_BYTES=5242880
 ```
 
 ## GitHub Actions
@@ -88,7 +89,8 @@ The workflow uses `npm install` so it can run before a lockfile exists. After yo
 - Todoist active-task APIs omit deleted tasks. This app marks a Notion row as `Deleted` when a previously synced `Active` top-level task no longer appears in Todoist active tasks or the recent completed-task feed.
 - Comments for completed tasks may be unavailable depending on Todoist API behavior and account permissions. The sync logs a warning and continues.
 - Comment timestamps are displayed using `DISPLAY_TIME_ZONE`.
-- Todoist attachments are exposed as comment file metadata. This app stores file name, URL, and content type, and embeds image URLs as Notion external images when possible.
+- Todoist attachments are exposed as comment file metadata. Image attachments are downloaded from Todoist and uploaded directly to Notion when they are within `MAX_IMAGE_UPLOAD_BYTES`. PDFs, sheets, and other files are kept as source links under the related comment.
+- Notion direct file uploads are subject to workspace limits. Free workspaces may reject files above 5 MiB; larger paid-workspace files can require multi-part upload, which this app intentionally avoids for now.
 - Notion allows roughly three requests per second per connection and returns `429` or `529` with retry guidance. The app uses retries, exponential backoff, and `Retry-After` handling.
 - Notion request payloads are limited, including 100 block children per append call and 2000 characters per rich text object. The app chunks generated blocks and long text.
 

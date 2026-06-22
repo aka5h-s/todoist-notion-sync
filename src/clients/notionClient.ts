@@ -12,16 +12,21 @@ import { isoNow, toNotionDate } from "../utils/date.js";
 import { withRetry } from "../utils/retry.js";
 import { getDueDate, mapPriority } from "../services/mappers.js";
 import { buildTaskPageBlocks } from "../services/notionBlocks.js";
+import { NotionFileUploadClient } from "./notionFileUploadClient.js";
+import { logger } from "../utils/logger.js";
 
 const pageSize = 100;
 
 export class NotionClient {
   private readonly notion: Client;
+  private readonly fileUploads: NotionFileUploadClient;
 
-  public constructor() {
+  public constructor(fileUploads = new NotionFileUploadClient()) {
     this.notion = new Client({
-      auth: env.NOTION_API_TOKEN
+      auth: env.NOTION_API_TOKEN,
+      notionVersion: "2026-03-11"
     });
+    this.fileUploads = fileUploads;
   }
 
   public async listSyncedPages(databaseId: string): Promise<NotionTaskPage[]> {
@@ -71,13 +76,14 @@ export class NotionClient {
   public async upsertTask(databaseId: string, task: SyncTask): Promise<"created" | "updated"> {
     const existing = await this.findTaskPage(databaseId, task.id);
     const properties = taskProperties(task);
+    const pageBlocks = buildTaskPageBlocks(await this.prepareImageAttachments(task));
 
     if (existing) {
-      await this.updateTaskPage(existing.pageId, properties, buildTaskPageBlocks(task));
+      await this.updateTaskPage(existing.pageId, properties, pageBlocks);
       return "updated";
     }
 
-    await this.createTaskPage(databaseId, properties, buildTaskPageBlocks(task));
+    await this.createTaskPage(databaseId, properties, pageBlocks);
     return "created";
   }
 
@@ -216,6 +222,46 @@ export class NotionClient {
       );
     }
   }
+
+  private async prepareImageAttachments(task: SyncTask): Promise<SyncTask> {
+    const prepared: SyncTask = {
+      ...task,
+      comments: await Promise.all(
+        task.comments.map(async (comment) => {
+          const attachment = comment.attachment;
+          if (!attachment?.fileUrl || !isImageAttachment(attachment.contentType)) {
+            return comment;
+          }
+
+          try {
+            const notionFileUploadId = await this.fileUploads.uploadAttachment(attachment);
+            return {
+              ...comment,
+              attachment: {
+                ...attachment,
+                notionFileUploadId
+              }
+            };
+          } catch (error) {
+            logger.warn({ error, todoistId: task.id, fileName: attachment.fileName }, "image upload failed");
+            return {
+              ...comment,
+              attachment: {
+                ...attachment,
+                uploadError: "Image upload failed; keeping source link."
+              }
+            };
+          }
+        })
+      )
+    };
+
+    return prepared;
+  }
+}
+
+function isImageAttachment(contentType: string | undefined): boolean {
+  return contentType?.toLowerCase().startsWith("image/") ?? false;
 }
 
 function taskProperties(task: SyncTask): CreatePageParameters["properties"] {
