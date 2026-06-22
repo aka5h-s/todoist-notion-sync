@@ -6,6 +6,7 @@ const envSchema = z.object({
   NOTION_API_TOKEN: z.string().min(1),
   WORK_DATABASE_ID: z.string().min(1),
   PERSONAL_DATABASE_ID: z.string().min(1),
+  SYNC_STATE_DATABASE_ID: z.string().optional(),
   LOG_LEVEL: z.string().default("info"),
   COMPLETED_LOOKBACK_DAYS: z.coerce.number().int().positive().default(90),
   DISPLAY_TIME_ZONE: z.string().default("Asia/Kolkata"),

@@ -66,6 +66,7 @@ export interface NotionTaskPage {
   pageId: string;
   todoistId: string;
   status: TaskStatus;
+  syncHash?: string | undefined;
 }
 
 export interface SyncStats {
@@ -75,4 +76,12 @@ export interface SyncStats {
   deleted: number;
   skipped: number;
   failed: number;
+}
+
+export interface TodoistSyncState {
+  syncToken: string;
+  projects: TodoistProject[];
+  tasks: TodoistTask[];
+  comments: TodoistComment[];
+  updatedAt?: string | undefined;
 }

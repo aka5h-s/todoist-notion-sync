@@ -14,6 +14,7 @@ import { getDueDate, mapPriority } from "../services/mappers.js";
 import { buildTaskPageBlocks } from "../services/notionBlocks.js";
 import { NotionFileUploadClient } from "./notionFileUploadClient.js";
 import { logger } from "../utils/logger.js";
+import { calculateTaskSyncHash } from "../services/syncHash.js";
 
 const pageSize = 100;
 
@@ -62,7 +63,8 @@ export class NotionClient {
         pages.push({
           pageId: result.id,
           todoistId,
-          status: getSelectProperty(result, "Status") ?? "Active"
+          status: getSelectProperty(result, "Status") ?? "Active",
+          syncHash: getTextProperty(result, "Sync Hash") ?? undefined
         });
       }
 
@@ -72,9 +74,25 @@ export class NotionClient {
     return pages;
   }
 
-  public async upsertTask(databaseId: string, task: SyncTask): Promise<"created" | "updated"> {
+  public async upsertTask(databaseId: string, task: SyncTask): Promise<"created" | "updated" | "skipped"> {
     const existing = await this.findTaskPage(databaseId, task.id);
     const properties = taskProperties(task);
+    const syncHash = calculateTaskSyncHash(task);
+
+    if (existing?.syncHash === syncHash) {
+      return "skipped";
+    }
+
+    properties["Sync Hash"] = {
+      rich_text: [
+        {
+          text: {
+            content: syncHash
+          }
+        }
+      ]
+    };
+
     const pageBlocks = buildTaskPageBlocks(await this.prepareImageAttachments(task));
 
     if (existing) {
@@ -132,7 +150,8 @@ export class NotionClient {
     return {
       pageId: first.id,
       todoistId,
-      status: getSelectProperty(first, "Status") ?? "Active"
+      status: getSelectProperty(first, "Status") ?? "Active",
+      syncHash: getTextProperty(first, "Sync Hash") ?? undefined
     };
   }
 

@@ -40,8 +40,22 @@ Create two Notion databases with these exact property names and types:
 | Last Synced | Date |
 | Description | Text |
 | Source | Select: Todoist |
+| Sync Hash | Text |
 
 Share both databases with your Notion integration.
+
+## Sync State Database
+
+Create one additional Notion database named `Todoist Sync State` and share it with the same Notion integration.
+
+It needs these properties:
+
+| Property | Type |
+| --- | --- |
+| Key | Title |
+| Updated At | Date |
+
+The app stores Todoist's `sync_token` and local Todoist snapshot in the page body of a single row. Do not edit this database manually.
 
 ## Setup
 
@@ -60,6 +74,7 @@ TODOIST_API_TOKEN=
 NOTION_API_TOKEN=
 WORK_DATABASE_ID=387738608a7a80f9b509ceca8fab71e7
 PERSONAL_DATABASE_ID=387738608a7a80d09234f5565a35d2c8
+SYNC_STATE_DATABASE_ID=
 LOG_LEVEL=info
 COMPLETED_LOOKBACK_DAYS=90
 DISPLAY_TIME_ZONE=Asia/Kolkata
@@ -80,12 +95,15 @@ Add these repository secrets:
 - `NOTION_API_TOKEN`
 - `WORK_DATABASE_ID`
 - `PERSONAL_DATABASE_ID`
+- `SYNC_STATE_DATABASE_ID`
 
 The workflow uses `npm install` so it can run before a lockfile exists. After you run `npm install` locally and commit `package-lock.json`, you can switch that step to `npm ci` for stricter reproducible installs. GitHub scheduled workflows can be delayed under platform load, so treat the schedule as best-effort rather than exact wall-clock execution.
 
 ## API Notes And Limitations
 
 - Todoist completed-task lookup by completion date is limited to a maximum three-month range. Keep `COMPLETED_LOOKBACK_DAYS` at `90` or lower.
+- When `SYNC_STATE_DATABASE_ID` is configured, the app uses Todoist's Sync API and stores the resulting `sync_token` in Notion. If it is not configured, the app falls back to the legacy REST sync path.
+- `Sync Hash` lets the app skip unchanged Notion pages before page rewrites or image uploads.
 - Todoist active-task APIs omit deleted tasks. This app marks a Notion row as `Deleted` when a previously synced `Active` top-level task no longer appears in Todoist active tasks or the recent completed-task feed.
 - Comments for completed tasks may be unavailable depending on Todoist API behavior and account permissions. The sync logs a warning and continues.
 - Comment timestamps are displayed using `DISPLAY_TIME_ZONE`.
