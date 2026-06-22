@@ -21,6 +21,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
 
       - name: Install dependencies
         run: npm install
@@ -32,3 +33,4 @@ jobs:
           NOTION_API_TOKEN: ${{ secrets.NOTION_API_TOKEN }}
           WORK_DATABASE_ID: ${{ secrets.WORK_DATABASE_ID }}
           PERSONAL_DATABASE_ID: ${{ secrets.PERSONAL_DATABASE_ID }}
+          SYNC_STATE_DATABASE_ID: ${{ secrets.SYNC_STATE_DATABASE_ID }}
