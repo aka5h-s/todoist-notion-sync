@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "One-way synchronization from Todoist tasks to Notion databases.",
   "type": "module",
+  "license": "MIT",
   "private": true,
   "engines": {
     "node": ">=22"
