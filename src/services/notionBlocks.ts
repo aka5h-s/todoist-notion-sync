@@ -1,4 +1,4 @@
-import type { BlockObjectRequest } from "@notionhq/client/build/src/api-endpoints.js";
+﻿import type { BlockObjectRequest } from "@notionhq/client/build/src/api-endpoints.js";
 import type { SyncTask, TodoistCommentAttachment } from "../types/domain.js";
 import { formatDisplayDate } from "../utils/date.js";
 import { getDueDate, mapPriority } from "./mappers.js";
@@ -44,36 +44,55 @@ function paragraphs(text: string): BlockObjectRequest[] {
 }
 
 function commentBlocks(task: SyncTask): BlockObjectRequest[] {
-  const seen = new Set<string>();
-  const comments = task.comments.filter((comment) => {
-    if (seen.has(comment.id)) {
-      return false;
-    }
-    seen.add(comment.id);
-    return true;
-  });
-
+  const comments = uniqueComments(task.comments);
   if (comments.length === 0) {
     return [paragraph("No comments.")];
   }
 
-  return comments.flatMap((comment) => {
-    const timestamp = formatDisplayDate(comment.postedAt);
-    const prefix = timestamp ? `${timestamp} - ` : "";
-    const content = cleanCommentContent(comment.content);
-    const hasText = content.length > 0;
-    const blocks = hasText ? paragraphs(`${prefix}${content}`) : [];
+  return comments.flatMap((comment) => renderComment(comment, 0));
+}
 
-    if (!comment.attachment) {
-      return blocks.length > 0 ? blocks : paragraphs(`${prefix}Empty comment`);
-    }
+function subtaskBlocks(tasks: SyncTask[]): BlockObjectRequest[] {
+  if (tasks.length === 0) {
+    return [paragraph("No subtasks.")];
+  }
 
-    if (blocks.length === 0 && timestamp) {
-      return [paragraph(timestamp), ...commentAttachmentBlocks(comment.attachment)];
-    }
+  return tasks.flatMap((task) => subtaskTaskBlocks(task, 0));
+}
 
-    return [...blocks, ...commentAttachmentBlocks(comment.attachment)];
-  });
+function subtaskTaskBlocks(task: SyncTask, level: number): BlockObjectRequest[] {
+  return [
+    ...paragraphs(subtaskLine(task, level)),
+    ...uniqueComments(task.comments).flatMap((comment) => renderComment(comment, level + 1)),
+    ...task.subtasks.flatMap((subtask) => subtaskTaskBlocks(subtask, level + 1))
+  ];
+}
+
+function subtaskLine(task: SyncTask, level: number): string {
+  const status = task.isCompleted || task.status === "Completed" ? "✓" : "☐";
+  const due = getDueDate(task) ? ` | due ${getDueDate(task)}` : "";
+  const priority = ` | ${mapPriority(task.priority)}`;
+  const indent = "  ".repeat(level);
+
+  return `${indent}${status} ${task.content}${due}${priority}`;
+}
+
+function renderComment(comment: SyncTask["comments"][number], level: number): BlockObjectRequest[] {
+  const indent = "  ".repeat(level);
+  const timestamp = formatDisplayDate(comment.postedAt);
+  const prefix = timestamp ? `${indent}${timestamp} - ` : indent;
+  const content = cleanCommentContent(comment.content);
+  const blocks = content ? paragraphs(`${prefix}${content}`) : [];
+
+  if (!comment.attachment) {
+    return blocks.length > 0 ? blocks : paragraphs(`${indent}Empty comment`);
+  }
+
+  if (blocks.length === 0 && timestamp) {
+    return [paragraph(`${indent}${timestamp}`), ...commentAttachmentBlocks(comment.attachment)];
+  }
+
+  return [...blocks, ...commentAttachmentBlocks(comment.attachment)];
 }
 
 function commentAttachmentBlocks(attachment: TodoistCommentAttachment): BlockObjectRequest[] {
@@ -110,33 +129,20 @@ function commentAttachmentBlocks(attachment: TodoistCommentAttachment): BlockObj
   ];
 }
 
-function cleanCommentContent(content: string): string {
-  const trimmed = content.trim();
-  return trimmed.toLowerCase() === "(attachment)" ? "" : trimmed;
-}
-
-function subtaskBlocks(tasks: SyncTask[]): BlockObjectRequest[] {
-  if (tasks.length === 0) {
-    return [paragraph("No subtasks.")];
-  }
-
-  return subtaskLines(tasks, 0).flatMap((line) => paragraphs(line));
-}
-
-function subtaskLines(tasks: SyncTask[], level: number): string[] {
-  return tasks.flatMap((task) => {
-    const line = subtaskLine(task, level);
-    return [line, ...subtaskLines(task.subtasks, level + 1)];
+function uniqueComments(comments: SyncTask["comments"]): SyncTask["comments"] {
+  const seen = new Set<string>();
+  return comments.filter((comment) => {
+    if (seen.has(comment.id)) {
+      return false;
+    }
+    seen.add(comment.id);
+    return true;
   });
 }
 
-function subtaskLine(task: SyncTask, level: number): string {
-  const status = task.isCompleted || task.status === "Completed" ? "✓" : "☐";
-  const due = getDueDate(task) ? ` | due ${getDueDate(task)}` : "";
-  const priority = ` | ${mapPriority(task.priority)}`;
-  const indent = "  ".repeat(level);
-
-  return `${indent}${status} ${task.content}${due}${priority}`;
+function cleanCommentContent(content: string): string {
+  const trimmed = content.trim();
+  return trimmed.toLowerCase() === "(attachment)" ? "" : trimmed;
 }
 
 function richText(text: string): Array<{ type: "text"; text: { content: string } }> {

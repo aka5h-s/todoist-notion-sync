@@ -1,12 +1,15 @@
 import type { SyncTask } from "../types/domain.js";
 import { stableHash } from "../utils/hash.js";
 
+const syncHashVersion = "2026-06-23-subtask-comments-v1";
+
 export function calculateTaskSyncHash(task: SyncTask): string {
   return stableHash(toHashableTask(task));
 }
 
 function toHashableTask(task: SyncTask): unknown {
   return {
+    syncHashVersion,
     id: task.id,
     content: task.content,
     description: task.description,

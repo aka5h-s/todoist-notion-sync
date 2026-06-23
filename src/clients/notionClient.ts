@@ -242,39 +242,41 @@ export class NotionClient {
   }
 
   private async prepareImageAttachments(task: SyncTask): Promise<SyncTask> {
-    const prepared: SyncTask = {
+    return {
       ...task,
-      comments: await Promise.all(
-        task.comments.map(async (comment) => {
-          const attachment = comment.attachment;
-          if (!attachment?.fileUrl || !isImageAttachment(attachment.contentType)) {
-            return comment;
-          }
-
-          try {
-            const notionFileUploadId = await this.fileUploads.uploadAttachment(attachment);
-            return {
-              ...comment,
-              attachment: {
-                ...attachment,
-                notionFileUploadId
-              }
-            };
-          } catch (error) {
-            logger.warn({ error, todoistId: task.id, fileName: attachment.fileName }, "image upload failed");
-            return {
-              ...comment,
-              attachment: {
-                ...attachment,
-                uploadError: "Image upload failed; keeping source link."
-              }
-            };
-          }
-        })
-      )
+      comments: await Promise.all(task.comments.map((comment) => this.prepareCommentAttachment(task.id, comment))),
+      subtasks: await Promise.all(task.subtasks.map((subtask) => this.prepareImageAttachments(subtask)))
     };
+  }
 
-    return prepared;
+  private async prepareCommentAttachment(
+    taskId: string,
+    comment: SyncTask["comments"][number]
+  ): Promise<SyncTask["comments"][number]> {
+    const attachment = comment.attachment;
+    if (!attachment?.fileUrl || !isImageAttachment(attachment.contentType)) {
+      return comment;
+    }
+
+    try {
+      const notionFileUploadId = await this.fileUploads.uploadAttachment(attachment);
+      return {
+        ...comment,
+        attachment: {
+          ...attachment,
+          notionFileUploadId
+        }
+      };
+    } catch (error) {
+      logger.warn({ error, todoistId: taskId, fileName: attachment.fileName }, "image upload failed");
+      return {
+        ...comment,
+        attachment: {
+          ...attachment,
+          uploadError: "Image upload failed; keeping source link."
+        }
+      };
+    }
   }
 }
 
