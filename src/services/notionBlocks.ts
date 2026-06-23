@@ -57,32 +57,42 @@ function subtaskBlocks(tasks: SyncTask[]): BlockObjectRequest[] {
     return [paragraph("No subtasks.")];
   }
 
-  return tasks.flatMap((task) => subtaskTaskBlocks(task, 0));
+  return tasks.map((task) => subtaskToggleBlock(task));
 }
 
-function subtaskTaskBlocks(task: SyncTask, level: number): BlockObjectRequest[] {
-  return [
-    ...paragraphs(subtaskLine(task, level)),
-    ...uniqueComments(task.comments).flatMap((comment) => renderComment(comment, level + 1)),
-    ...task.subtasks.flatMap((subtask) => subtaskTaskBlocks(subtask, level + 1))
+function subtaskToggleBlock(task: SyncTask): BlockObjectRequest {
+  const children = [
+    ...uniqueComments(task.comments).flatMap((comment) => renderComment(comment, 0)),
+    ...task.subtasks.map((subtask) => subtaskToggleBlock(subtask))
   ];
+
+  return {
+    object: "block",
+    type: "toggle",
+    toggle: {
+      rich_text: richText(subtaskLine(task)),
+      children: children.length > 0 ? children : [paragraph("No details.")]
+    }
+  } as unknown as BlockObjectRequest;
 }
 
-function subtaskLine(task: SyncTask, level: number): string {
+function subtaskLine(task: SyncTask): string {
   const status = task.isCompleted || task.status === "Completed" ? "✓" : "☐";
   const due = getDueDate(task) ? ` | due ${getDueDate(task)}` : "";
-  const priority = ` | ${mapPriority(task.priority)}`;
-  const indent = "  ".repeat(level);
+  const mappedPriority = mapPriority(task.priority);
+  const priority = mappedPriority === "Low" ? "" : ` | ${mappedPriority}`;
 
-  return `${indent}${status} ${task.content}${due}${priority}`;
+  return `${status} ${task.content}${due}${priority}`;
 }
 
 function renderComment(comment: SyncTask["comments"][number], level: number): BlockObjectRequest[] {
   const indent = "  ".repeat(level);
   const timestamp = formatDisplayDate(comment.postedAt);
-  const prefix = timestamp ? `${indent}${timestamp} - ` : indent;
   const content = cleanCommentContent(comment.content);
-  const blocks = content ? paragraphs(`${prefix}${content}`) : [];
+  const blocks = [
+    ...(timestamp ? paragraphs(`${indent}Comment · ${timestamp}`) : []),
+    ...(content ? paragraphs(`${indent}${content}`) : [])
+  ];
 
   if (!comment.attachment) {
     return blocks.length > 0 ? blocks : paragraphs(`${indent}Empty comment`);
