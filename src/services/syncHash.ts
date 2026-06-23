@@ -1,7 +1,7 @@
 import type { SyncTask } from "../types/domain.js";
 import { stableHash } from "../utils/hash.js";
 
-const syncHashVersion = "2026-06-23-subtask-toggles-v1";
+const syncHashVersion = "2026-06-23-no-attachments-section-v1";
 
 export function calculateTaskSyncHash(task: SyncTask): string {
   return stableHash(toHashableTask(task));

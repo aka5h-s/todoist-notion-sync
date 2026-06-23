@@ -12,9 +12,7 @@ export function buildTaskPageBlocks(task: SyncTask): BlockObjectRequest[] {
     heading("Comments"),
     ...commentBlocks(task),
     heading("Subtasks"),
-    ...subtaskBlocks(task.subtasks),
-    heading("Attachments"),
-    paragraph("Attachments are shown with their comments.")
+    ...subtaskBlocks(task.subtasks)
   ];
 }
 
