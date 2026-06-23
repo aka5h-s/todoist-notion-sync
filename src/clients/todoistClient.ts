@@ -11,23 +11,23 @@ import type {
 import { withRetry } from "../utils/retry.js";
 
 const paginatedSchema = z.object({
-  results: z.array(z.unknown()).default([]),
+  results: z.array(z.unknown()).nullable().optional().transform((val) => val ?? []),
   next_cursor: z.string().nullable().optional()
 });
 
 const completedPaginatedSchema = z.object({
-  items: z.array(z.unknown()).default([]),
+  items: z.array(z.unknown()).nullable().optional().transform((val) => val ?? []),
   next_cursor: z.string().nullable().optional()
 });
 
 const projectSchema = z.object({
   id: z.coerce.string(),
-  name: z.string()
+  name: z.string().nullable().optional()
 });
 
 const dueSchema = z
   .object({
-    date: z.string(),
+    date: z.string().nullable().optional(),
     datetime: z.string().nullable().optional(),
     timezone: z.string().nullable().optional(),
     string: z.string().nullable().optional()
@@ -37,43 +37,43 @@ const dueSchema = z
 const taskSchema = z
   .object({
     id: z.coerce.string(),
-    project_id: z.coerce.string(),
+    project_id: z.coerce.string().nullable().optional(),
     section_id: z.coerce.string().nullable().optional(),
     parent_id: z.coerce.string().nullable().optional(),
-    child_order: z.number().int().default(0),
-    content: z.string(),
+    child_order: z.number().int().nullable().optional().transform((val) => val ?? 0),
+    content: z.string().nullable().optional().transform((val) => val ?? ""),
     description: z.string().nullable().optional(),
-    labels: z.array(z.string()).default([]),
-    priority: z.number().int().default(1),
+    labels: z.array(z.string()).nullable().optional().transform((val) => val ?? []),
+    priority: z.number().int().nullable().optional().transform((val) => val ?? 1),
     due: dueSchema.nullable().optional(),
-    url: z.string().optional(),
-    added_at: z.string().optional(),
-    created_at: z.string().optional(),
-    updated_at: z.string().optional(),
+    url: z.string().nullable().optional(),
+    added_at: z.string().nullable().optional(),
+    created_at: z.string().nullable().optional(),
+    updated_at: z.string().nullable().optional(),
     completed_at: z.string().nullable().optional(),
-    checked: z.boolean().optional()
+    checked: z.boolean().nullable().optional()
   })
   .passthrough();
 
 const attachmentSchema = z
   .object({
-    file_name: z.string().optional(),
-    file_url: z.string().optional(),
-    file_type: z.string().optional(),
-    resource_type: z.string().optional()
+    file_name: z.string().nullable().optional(),
+    file_url: z.string().nullable().optional(),
+    file_type: z.string().nullable().optional(),
+    resource_type: z.string().nullable().optional()
   })
   .passthrough();
 
 const commentSchema = z
   .object({
     id: z.coerce.string(),
-    task_id: z.coerce.string().optional(),
-    item_id: z.coerce.string().optional(),
-    content: z.string().default(""),
-    posted_at: z.string().optional(),
-    posted_uid: z.union([z.string(), z.number()]).optional(),
+    task_id: z.coerce.string().nullable().optional(),
+    item_id: z.coerce.string().nullable().optional(),
+    content: z.string().nullable().optional().transform((val) => val ?? ""),
+    posted_at: z.string().nullable().optional(),
+    posted_uid: z.union([z.string(), z.number()]).nullable().optional(),
     file_attachment: attachmentSchema.nullable().optional(),
-    is_deleted: z.boolean().optional()
+    is_deleted: z.boolean().nullable().optional()
   })
   .passthrough();
 
@@ -171,7 +171,7 @@ export class TodoistClient {
 
     return {
       id: task.id,
-      projectId: task.project_id,
+      projectId: task.project_id ?? "",
       sectionId: task.section_id,
       parentId: task.parent_id,
       order: task.child_order,
@@ -180,9 +180,9 @@ export class TodoistClient {
       labels: task.labels,
       priority: task.priority,
       due: task.due as TodoistDue | null | undefined,
-      url: task.url,
-      createdAt: task.added_at ?? task.created_at,
-      updatedAt: task.updated_at,
+      url: task.url ?? undefined,
+      createdAt: task.added_at ?? task.created_at ?? undefined,
+      updatedAt: task.updated_at ?? undefined,
       completedAt: task.completed_at ?? undefined,
       isCompleted: completed || task.checked === true,
       status: completed || task.checked === true ? "Completed" : "Active"
@@ -197,9 +197,9 @@ export class TodoistClient {
 
     const attachment: TodoistCommentAttachment | undefined = comment.file_attachment
       ? {
-          fileName: comment.file_attachment.file_name,
-          fileUrl: comment.file_attachment.file_url,
-          contentType: comment.file_attachment.file_type ?? comment.file_attachment.resource_type
+          fileName: comment.file_attachment.file_name ?? undefined,
+          fileUrl: comment.file_attachment.file_url ?? undefined,
+          contentType: comment.file_attachment.file_type ?? comment.file_attachment.resource_type ?? undefined
         }
       : undefined;
 
@@ -207,7 +207,7 @@ export class TodoistClient {
       id: comment.id,
       taskId: comment.task_id ?? comment.item_id ?? fallbackTaskId,
       content: comment.content,
-      postedAt: comment.posted_at,
+      postedAt: comment.posted_at ?? undefined,
       author: comment.posted_uid ? String(comment.posted_uid) : undefined,
       attachment
     };

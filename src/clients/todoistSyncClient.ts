@@ -14,15 +14,15 @@ import { withRetry } from "../utils/retry.js";
 const projectSchema = z
   .object({
     id: z.coerce.string(),
-    name: z.string(),
-    is_deleted: z.boolean().optional(),
-    is_archived: z.boolean().optional()
+    name: z.string().nullable().optional(),
+    is_deleted: z.boolean().nullable().optional(),
+    is_archived: z.boolean().nullable().optional()
   })
   .passthrough();
 
 const dueSchema = z
   .object({
-    date: z.string(),
+    date: z.string().nullable().optional(),
     datetime: z.string().nullable().optional(),
     timezone: z.string().nullable().optional(),
     string: z.string().nullable().optional()
@@ -32,44 +32,44 @@ const dueSchema = z
 const itemSchema = z
   .object({
     id: z.coerce.string(),
-    project_id: z.coerce.string(),
+    project_id: z.coerce.string().nullable().optional(),
     section_id: z.coerce.string().nullable().optional(),
     parent_id: z.coerce.string().nullable().optional(),
-    child_order: z.number().int().default(0),
-    content: z.string().default(""),
+    child_order: z.number().int().nullable().optional().transform((val) => val ?? 0),
+    content: z.string().nullable().optional().transform((val) => val ?? ""),
     description: z.string().nullable().optional(),
-    labels: z.array(z.string()).default([]),
-    priority: z.number().int().default(1),
+    labels: z.array(z.string()).nullable().optional().transform((val) => val ?? []),
+    priority: z.number().int().nullable().optional().transform((val) => val ?? 1),
     due: dueSchema.nullable().optional(),
-    url: z.string().optional(),
-    added_at: z.string().optional(),
-    created_at: z.string().optional(),
-    updated_at: z.string().optional(),
+    url: z.string().nullable().optional(),
+    added_at: z.string().nullable().optional(),
+    created_at: z.string().nullable().optional(),
+    updated_at: z.string().nullable().optional(),
     completed_at: z.string().nullable().optional(),
-    checked: z.boolean().optional(),
-    is_deleted: z.boolean().optional()
+    checked: z.boolean().nullable().optional(),
+    is_deleted: z.boolean().nullable().optional()
   })
   .passthrough();
 
 const attachmentSchema = z
   .object({
-    file_name: z.string().optional(),
-    file_url: z.string().optional(),
-    file_type: z.string().optional(),
-    resource_type: z.string().optional()
+    file_name: z.string().nullable().optional(),
+    file_url: z.string().nullable().optional(),
+    file_type: z.string().nullable().optional(),
+    resource_type: z.string().nullable().optional()
   })
   .passthrough();
 
 const noteSchema = z
   .object({
     id: z.coerce.string(),
-    item_id: z.coerce.string().optional(),
-    task_id: z.coerce.string().optional(),
-    content: z.string().default(""),
-    posted_at: z.string().optional(),
-    posted_uid: z.union([z.string(), z.number()]).optional(),
+    item_id: z.coerce.string().nullable().optional(),
+    task_id: z.coerce.string().nullable().optional(),
+    content: z.string().nullable().optional().transform((val) => val ?? ""),
+    posted_at: z.string().nullable().optional(),
+    posted_uid: z.union([z.string(), z.number()]).nullable().optional(),
     file_attachment: attachmentSchema.nullable().optional(),
-    is_deleted: z.boolean().optional()
+    is_deleted: z.boolean().nullable().optional()
   })
   .passthrough();
 
@@ -77,9 +77,9 @@ const syncResponseSchema = z
   .object({
     sync_token: z.string(),
     full_sync: z.boolean().optional(),
-    projects: z.array(z.unknown()).default([]),
-    items: z.array(z.unknown()).default([]),
-    notes: z.array(z.unknown()).default([])
+    projects: z.array(z.unknown()).nullable().optional().transform((val) => val ?? []),
+    items: z.array(z.unknown()).nullable().optional().transform((val) => val ?? []),
+    notes: z.array(z.unknown()).nullable().optional().transform((val) => val ?? [])
   })
   .passthrough();
 
@@ -151,7 +151,7 @@ function mergeProjects(existing: TodoistProject[], updates: unknown[]): TodoistP
 
     byId.set(project.id, {
       id: project.id,
-      name: project.name
+      name: project.name ?? ""
     });
   }
 
@@ -170,7 +170,7 @@ function mergeTasks(existing: TodoistTask[], updates: unknown[]): TodoistTask[] 
 
     byId.set(item.id, {
       id: item.id,
-      projectId: item.project_id,
+      projectId: item.project_id ?? "",
       sectionId: item.section_id,
       parentId: item.parent_id,
       order: item.child_order,
@@ -179,9 +179,9 @@ function mergeTasks(existing: TodoistTask[], updates: unknown[]): TodoistTask[] 
       labels: item.labels,
       priority: item.priority,
       due: item.due,
-      url: item.url,
-      createdAt: item.added_at ?? item.created_at,
-      updatedAt: item.updated_at,
+      url: item.url ?? undefined,
+      createdAt: item.added_at ?? item.created_at ?? undefined,
+      updatedAt: item.updated_at ?? undefined,
       completedAt: item.completed_at ?? undefined,
       isCompleted: item.checked === true,
       status: item.checked === true ? "Completed" : "Active"
@@ -210,7 +210,7 @@ function mergeComments(existing: TodoistComment[], updates: unknown[]): TodoistC
       id: note.id,
       taskId,
       content: note.content,
-      postedAt: note.posted_at,
+      postedAt: note.posted_at ?? undefined,
       author: note.posted_uid ? String(note.posted_uid) : undefined,
       attachment: toAttachment(note.file_attachment)
     });
@@ -225,8 +225,8 @@ function toAttachment(raw: z.infer<typeof attachmentSchema> | null | undefined):
   }
 
   return {
-    fileName: raw.file_name,
-    fileUrl: raw.file_url,
-    contentType: raw.file_type ?? raw.resource_type
+    fileName: raw.file_name ?? undefined,
+    fileUrl: raw.file_url ?? undefined,
+    contentType: raw.file_type ?? raw.resource_type ?? undefined
   };
 }
