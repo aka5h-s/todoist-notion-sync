@@ -4,6 +4,7 @@ import { env } from "../config/env.js";
 import type {
   TodoistComment,
   TodoistCommentAttachment,
+  TodoistDue,
   TodoistProject,
   TodoistSyncState,
   TodoistTask
@@ -25,7 +26,8 @@ const dueSchema = z
     date: z.string().nullable().optional(),
     datetime: z.string().nullable().optional(),
     timezone: z.string().nullable().optional(),
-    string: z.string().nullable().optional()
+    string: z.string().nullable().optional(),
+    is_recurring: z.boolean().nullable().optional()
   })
   .passthrough();
 
@@ -168,6 +170,16 @@ function mergeTasks(existing: TodoistTask[], updates: unknown[]): TodoistTask[] 
       continue;
     }
 
+    const due: TodoistDue | null = item.due
+      ? {
+          date: item.due.date ?? "",
+          datetime: item.due.datetime,
+          timezone: item.due.timezone,
+          string: item.due.string,
+          isRecurring: item.due.is_recurring
+        }
+      : null;
+
     byId.set(item.id, {
       id: item.id,
       projectId: item.project_id ?? "",
@@ -178,7 +190,7 @@ function mergeTasks(existing: TodoistTask[], updates: unknown[]): TodoistTask[] 
       description: item.description ?? "",
       labels: item.labels,
       priority: item.priority,
-      due: item.due,
+      due,
       url: item.url ?? undefined,
       createdAt: item.added_at ?? item.created_at ?? undefined,
       updatedAt: item.updated_at ?? undefined,

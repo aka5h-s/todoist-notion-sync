@@ -30,7 +30,8 @@ const dueSchema = z
     date: z.string().nullable().optional(),
     datetime: z.string().nullable().optional(),
     timezone: z.string().nullable().optional(),
-    string: z.string().nullable().optional()
+    string: z.string().nullable().optional(),
+    is_recurring: z.boolean().nullable().optional()
   })
   .passthrough();
 
@@ -169,6 +170,16 @@ export class TodoistClient {
   private toTask(raw: unknown, completed: boolean): TodoistTask {
     const task = taskSchema.parse(raw);
 
+    const due: TodoistDue | null = task.due
+      ? {
+          date: task.due.date ?? "",
+          datetime: task.due.datetime,
+          timezone: task.due.timezone,
+          string: task.due.string,
+          isRecurring: task.due.is_recurring
+        }
+      : null;
+
     return {
       id: task.id,
       projectId: task.project_id ?? "",
@@ -179,7 +190,7 @@ export class TodoistClient {
       description: task.description ?? "",
       labels: task.labels,
       priority: task.priority,
-      due: task.due as TodoistDue | null | undefined,
+      due,
       url: task.url ?? undefined,
       createdAt: task.added_at ?? task.created_at ?? undefined,
       updatedAt: task.updated_at ?? undefined,

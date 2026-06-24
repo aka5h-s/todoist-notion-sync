@@ -56,7 +56,7 @@ export class NotionClient {
         }
 
         const todoistId = getTextProperty(result, "Todoist ID");
-        if (!todoistId) {
+        if (!todoistId || todoistId.includes(":")) {
           continue;
         }
 
@@ -64,7 +64,8 @@ export class NotionClient {
           pageId: result.id,
           todoistId,
           status: getSelectProperty(result, "Status") ?? "Active",
-          syncHash: getTextProperty(result, "Sync Hash") ?? undefined
+          syncHash: getTextProperty(result, "Sync Hash") ?? undefined,
+          dueDate: getDateProperty(result, "Due Date") ?? undefined
         });
       }
 
@@ -76,6 +77,30 @@ export class NotionClient {
 
   public async upsertTask(databaseId: string, task: SyncTask): Promise<"created" | "updated" | "skipped"> {
     const existing = await this.findTaskPage(databaseId, task.id);
+
+    // Check if recurring task completion needs to be archived
+    const isRecurring = task.due?.isRecurring === true;
+    if (isRecurring && existing?.dueDate) {
+      const todoistDueDate = getDueDate(task);
+      const notionDueDate = existing.dueDate;
+      if (todoistDueDate && todoistDueDate > notionDueDate) {
+        const archiveTodoistId = `${task.id}:${notionDueDate}`;
+        const archiveExists = await this.findTaskPage(databaseId, archiveTodoistId);
+
+        if (!archiveExists) {
+          logger.info({ todoistId: task.id, notionDueDate }, "creating archive row for completed recurrence");
+          const yyyymmdd = notionDueDate.slice(0, 10);
+          const completionDate = task.updatedAt ?? isoNow();
+          const archiveProperties = archiveTaskProperties(task, notionDueDate, completionDate, yyyymmdd);
+          const archivedPreparedTask = await this.prepareImageAttachments(task);
+          const archiveBlocks = buildTaskPageBlocks(archivedPreparedTask);
+          await this.createTaskPage(databaseId, archiveProperties, archiveBlocks);
+        } else {
+          logger.info({ todoistId: task.id, notionDueDate }, "archive row already exists; skipping");
+        }
+      }
+    }
+
     const properties = taskProperties(task);
     const syncHash = calculateTaskSyncHash(task);
 
@@ -151,7 +176,8 @@ export class NotionClient {
       pageId: first.id,
       todoistId,
       status: getSelectProperty(first, "Status") ?? "Active",
-      syncHash: getTextProperty(first, "Sync Hash") ?? undefined
+      syncHash: getTextProperty(first, "Sync Hash") ?? undefined,
+      dueDate: getDateProperty(first, "Due Date") ?? undefined
     };
   }
 
@@ -351,6 +377,78 @@ function taskProperties(task: SyncTask): CreatePageParameters["properties"] {
   };
 }
 
+function archiveTaskProperties(
+  task: SyncTask,
+  completedOccurrenceDate: string,
+  completionDate: string,
+  yyyymmdd: string
+): CreatePageParameters["properties"] {
+  return {
+    Task: {
+      title: [
+        {
+          text: {
+            content: `${task.content} [${yyyymmdd}]`
+          }
+        }
+      ]
+    },
+    "Todoist ID": {
+      rich_text: [
+        {
+          text: {
+            content: `${task.id}:${completedOccurrenceDate}`
+          }
+        }
+      ]
+    },
+    Status: {
+      select: {
+        name: "Completed"
+      }
+    },
+    Labels: {
+      multi_select: task.labels.map((label) => ({ name: label }))
+    },
+    Priority: {
+      select: {
+        name: mapPriority(task.priority)
+      }
+    },
+    "Due Date": {
+      date: toNotionDate(completedOccurrenceDate)
+    },
+    "Created Date": {
+      date: toNotionDate(task.createdAt)
+    },
+    "Completed Date": {
+      date: toNotionDate(completionDate)
+    },
+    "Last Updated": {
+      date: toNotionDate(task.updatedAt)
+    },
+    "Last Synced": {
+      date: {
+        start: isoNow()
+      }
+    },
+    Description: {
+      rich_text: [
+        {
+          text: {
+            content: task.description.slice(0, 2000)
+          }
+        }
+      ]
+    },
+    Source: {
+      select: {
+        name: "Todoist"
+      }
+    }
+  };
+}
+
 function chunkBlocks(blocks: BlockObjectRequest[], size: number): BlockObjectRequest[][] {
   const chunks: BlockObjectRequest[][] = [];
   for (let index = 0; index < blocks.length; index += size) {
@@ -388,4 +486,13 @@ function getSelectProperty(page: PageObjectResponse, propertyName: string): Task
 
   const name = property.select?.name;
   return name === "Active" || name === "Completed" || name === "Deleted" ? name : null;
+}
+
+function getDateProperty(page: PageObjectResponse, propertyName: string): string | null {
+  const property = page.properties[propertyName];
+  if (!property || property.type !== "date" || !property.date) {
+    return null;
+  }
+
+  return property.date.start;
 }

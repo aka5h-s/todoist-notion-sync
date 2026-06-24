@@ -19,6 +19,7 @@ export interface TodoistDue {
   datetime?: string | null | undefined;
   timezone?: string | null | undefined;
   string?: string | null | undefined;
+  isRecurring?: boolean | null | undefined;
 }
 
 export interface TodoistTask {
@@ -67,6 +68,7 @@ export interface NotionTaskPage {
   todoistId: string;
   status: TaskStatus;
   syncHash?: string | undefined;
+  dueDate?: string | null | undefined;
 }
 
 export interface SyncStats {
