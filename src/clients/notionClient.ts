@@ -24,7 +24,8 @@ export class NotionClient {
 
   public constructor(fileUploads = new NotionFileUploadClient()) {
     this.notion = new Client({
-      auth: env.NOTION_API_TOKEN
+      auth: env.NOTION_API_TOKEN,
+      fetch: (url, options) => globalThis.fetch(url, options)
     });
     this.fileUploads = fileUploads;
   }
